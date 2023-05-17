@@ -44,7 +44,7 @@ int main (int argc, char **argv)
     ros::spin ();
     return 0;
 }
-*/
+
 #include <ros/ros.h>
 #include <geometry_msgs/PointStamped.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -112,4 +112,96 @@ int main(int argc, char** argv)
     PointCloudProcessor processor;
     ros::spin();
     return 0;
+}*/
+#include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/common/common.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <geometry_msgs/PointStamped.h>
+#include <sensor_msgs/JointState.h>
+
+// Define the callback function for the point cloud subscriber
+void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg)
+{
+  // Convert the PointCloud2 message to a pcl PointCloud
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(*cloud_msg, *cloud);
+
+  // Find the highest point in the point cloud
+  pcl::PointXYZ minPoint, maxPoint;
+  pcl::getMinMax3D(*cloud, minPoint, maxPoint);
+  pcl::PointXYZ highestPoint = maxPoint;
+
+  // Publish the highest point as a geometry_msgs/Point message
+  ros::NodeHandle nh;
+  ros::Publisher pub = nh.advertise<geometry_msgs::Point>("highest_point", 1);
+  geometry_msgs::Point pointMsg;
+  //pointMsg.header = cloud_msg->header;
+  pointMsg.x = highestPoint.x;
+  pointMsg.y = highestPoint.y;
+  pointMsg.z = highestPoint.z;
+  pub.publish(pointMsg);
+
+  // Send a MoveIt MoveGroup command to move to the highest point
+  moveit::planning_interface::MoveGroupInterface move_group("sia10f_manipulator");
+  move_group.setPlannerId("RRTConnectkConfigDefault");
+  move_group.setPoseReferenceFrame("sia10f_base_link");
+
+  //get joint values
+  std::vector<double> joint_values;
+  move_group.getCurrentState()->copyJointGroupPositions(move_group.getName(), joint_values);
+  //modify angles
+  joint_values[6]=1.57; //changes sia10f_joint_7_t
+
+  move_group.setJointValueTarget(joint_values);
+
+  moveit::core::MoveItErrorCode planning_result = move_group.move();
+
+  if (planning_result == moveit::core::MoveItErrorCode::SUCCESS)
+  {
+    ROS_INFO("Joint angles adjusted");
+  }
+  else 
+  {
+    ROS_ERROR("failed to adjust angle");
+  }
+  
+/*
+  geometry_msgs::PoseStamped targetPose;
+  targetPose.header.frame_id = "sia10f_base_link";
+  targetPose.pose.position.x = highestPoint.x;
+  targetPose.pose.position.y = highestPoint.y;
+  targetPose.pose.position.z = highestPoint.z;
+  targetPose.pose.orientation.w = 1.0;
+
+  move_group.setPoseTarget(targetPose);
+  //move_group.move();
+  ros::Publisher planningScenePub = nh.advertise<geometry_msgs::PoseStamped>("/move_group/monitored_planning_scene", 1);
+  planningScenePub.publish(targetPose);
+  moveit::planning_interface::MoveGroupInterface::Plan myPlan;
+  bool success = (move_group_interface.plan(myPlan)==moveit::core::MoveItErrorCode::SUCCESS);
+  ROS_INFO("Successful planning");
+  move_group.setPoseTarget(targetPose);
+  moveit::core::MoveItErrorCode planningResult = move_group.plan(myPlan);
+  if (planningResult == moveit::core::MoveItErrorCode::SUCCESS){
+    ROS_INFO("Planning successful");
+  }
+  else{
+    ROS_WARN("Plan not successful");
+  }*/
+}
+
+int main(int argc, char** argv)
+{
+  // Initialize the ROS node
+  ros::init(argc, argv, "point_cloud_processor");
+  ros::NodeHandle nh;
+  // Subscribe to the point cloud topic
+  ros::Subscriber sub = nh.subscribe<sensor_msgs::PointCloud2>("point_cloud_topic", 1, pointCloudCallback);
+  // Spin and wait for callbacks
+  ros::spin();
+
+  return 0;
 }
