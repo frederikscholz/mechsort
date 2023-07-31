@@ -1,0 +1,5 @@
+<launch>
+    <node name="sia10f_move_node" pkg="mechsort" type="sia10f_move_node" output="screen">
+    </node>
+</launch>
+

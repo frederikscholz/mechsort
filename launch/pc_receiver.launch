@@ -1,0 +1,8 @@
+<launch>
+ 
+  <!-- Launch the node to extract the highest point -->
+  <node name="point_cloud_processor_node" pkg="mechsort" type="mechsort_node" output="screen">
+    <remap from="point_cloud_topic" to="/zed2i/zed_node/point_cloud/cloud_registered"/>
+  </node>
+</launch>
+
