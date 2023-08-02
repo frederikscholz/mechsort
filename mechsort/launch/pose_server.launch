@@ -1,0 +1,7 @@
+<launch>
+  <node name="pose_server_node" pkg="mechsort" type="pose_server" output="screen">
+  </node>
+</launch>
+
+chmod +x ~/catkin_ws/devel/lib/mechsort/pose_server
+
